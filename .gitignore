@@ -129,5 +129,5 @@ dmypy.json
 .pyre/
 
 #removing env
-./reinforcement-learning-env
+.reinforcement-learning-env/
 checkpoint_agent.pkl
