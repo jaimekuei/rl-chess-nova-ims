@@ -13,7 +13,7 @@ import yaml
 import json
 
 # setting arguments for the script
-parser = argparse.ArgumentParser(prog='rl_learn', description='Show top lines from each file')
+parser = argparse.ArgumenstParser(prog='rl_learn', description='Train an agent to play chess.')
 parser.add_argument('-f', '--file', type=str, required=True)
 parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
@@ -96,14 +96,14 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                 # or if it's the first movement
                 if ((reward_competior < 0) and count > 0):
                     # update the q_table with the penalization
-                    agent_white.update_q_table(
+                    agent_white.update(
                         old_play_white['legal_actions'], reward_competior, 
                         old_play_white['action'], old_play_white['state_flatten'], 
                         old_play_white['next_state_flatten'], discount_factor, alpha
                         )
                 
                 # select an action based on the epsilon greedy policy
-                action = agent_white.get_epsilon_greedy_action(legal_actions, state_flatten, epsilon)
+                action = agent_white.get_action(legal_actions, state_flatten, epsilon)
                 # extract the next state, reward and if the game is done
                 next_state, reward, done, _ = env.step(action)
                 # flatten the next state - taking 12 first dimensions
@@ -111,7 +111,7 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward_white = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
-                agent_white.update_q_table(
+                agent_white.update(
                     legal_actions, custom_reward_white, action, 
                     state_flatten, next_state_flatten, discount_factor, alpha
                     )
@@ -133,14 +133,14 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                 # or if it's the first movement
                 if ((reward_competior < 0) and count > 0):
                     # update the q_table with the penalization
-                     agent_black.update_q_table(
+                     agent_black.update(
                         old_play_black['legal_actions'], reward_competior, 
                         old_play_black['action'], old_play_black['state_flatten'], 
                         old_play_black['next_state_flatten'], discount_factor, alpha
                         )
                      
                 # select an action based on the epsilon greedy policy
-                action = agent_black.get_epsilon_greedy_action(legal_actions, state_flatten, epsilon)
+                action = agent_black.get_action(legal_actions, state_flatten, epsilon)
                 # extract the next state, reward and if the game is done
                 next_state, reward, done, _ = env.step(action)
                 # flatten the next state - taking 12 first dimensions
@@ -148,7 +148,7 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward_black = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
-                agent_black.update_q_table(
+                agent_black.update(
                     legal_actions, custom_reward_black, action, 
                     state_flatten, next_state_flatten, discount_factor, alpha
                     )
@@ -171,7 +171,7 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
         # if the white player won, penalize the black player
         if reward == 1:
             reward_black = -1
-            agent_black.update_q_table(
+            agent_black.update(
                         old_play_black['legal_actions'], reward_black, 
                         old_play_black['action'], old_play_black['state_flatten'], 
                         old_play_black['next_state_flatten'], discount_factor, alpha
@@ -180,7 +180,7 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
         # if the black player won, penalize the white player
         elif reward == -1:
             reward_white = -1
-            agent_white.update_q_table(
+            agent_white.update(
                         old_play_white['legal_actions'], reward_white, 
                         old_play_white['action'], old_play_white['state_flatten'], 
                         old_play_white['next_state_flatten'], discount_factor, alpha
@@ -306,14 +306,14 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
                 # or if it's the first movement
                 if ((reward_competior < 0) and count > 0):
                     # update the q_table with the penalization
-                    agent.update_q_table(
+                    agent.update(
                         old_play['legal_actions'], reward_competior, 
                         old_play['action'], old_play['state_flatten'], 
                         old_play['next_state_flatten'], discount_factor, alpha
                         )
                 
                 # select an action based on the epsilon greedy policy
-                action = agent.get_epsilon_greedy_action(legal_actions, state_flatten, epsilon)
+                action = agent.get_action(legal_actions, state_flatten, epsilon)
                 # decode the action to update the stockfish
                 decoded_action = str(env.decode(action))
                 stockfish.make_moves_from_current_position([decoded_action])
@@ -326,7 +326,7 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
-                agent.update_q_table(
+                agent.update(
                     legal_actions, custom_reward, action, 
                     state_flatten, next_state_flatten, discount_factor, alpha
                     )
@@ -359,7 +359,7 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
         else:
             reward = -reward
 
-        agent.update_q_table(
+        agent.update(
             old_play['legal_actions'], reward, 
             old_play['action'], old_play['state_flatten'], 
             old_play['next_state_flatten'], discount_factor, alpha

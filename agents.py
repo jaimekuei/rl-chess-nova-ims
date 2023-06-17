@@ -13,7 +13,7 @@ class QLearningAgent:
             }
         return max(filtered_dict.values()) if filtered_dict else 0
 
-    def get_epsilon_greedy_action(self, legal_actions, state, epsilon=0.1, method="zeros"):
+    def get_action(self, legal_actions, state, epsilon=0.1, method="zeros"):
         if state not in list(self.q_table.keys())[0]:
             self.initialize_q_value(legal_actions, state, method)
         if np.random.uniform(0,1) < epsilon:
@@ -30,7 +30,7 @@ class QLearningAgent:
             for action in legal_actions:
                 self.q_table[((state),action)] = np.random.lognormal(0,1)
 
-    def update_q_table(self, legal_actions, reward, action, state_flatten, 
+    def update(self, legal_actions, reward, action, state_flatten, 
             next_state_flatten, discount_factor, alpha):
         # Take the maximum return for the next state
         max_q_next_state = self.get_max_expected_reward(next_state_flatten, legal_actions)
