@@ -4,8 +4,8 @@ import gym
 import gym_chess
 from tqdm import tqdm
 
-from utils import save_checkpoint, update_game_metrics, flatten_state, get_custom_reward
-from agents import QLearningAgent
+from utils import save_checkpoint, update_game_metrics, get_custom_reward
+from agents import QLearningAgent, DQNAgent
 
 from stockfish import Stockfish
 import argparse
@@ -13,7 +13,7 @@ import yaml
 import json
 
 # setting arguments for the script
-parser = argparse.ArgumenstParser(prog='rl_learn', description='Train an agent to play chess.')
+parser = argparse.ArgumentParser(prog='rl_learn', description='Train an agent to play chess.')
 parser.add_argument('-f', '--file', type=str, required=True)
 parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
@@ -45,8 +45,8 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
 
     done = False
 
-    agent_white = agent_class()
-    agent_black = agent_class()
+    agent_white = agent_class(env)
+    agent_black = agent_class(env)
 
     # verification if it's to start in a q_table already trained
     if not checkpoint:
@@ -84,8 +84,6 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
 
         # initialize a game
         while not done:
-            # flatten the state - taking 12 first dimensions
-            state_flatten = flatten_state(state)
             # Selecting legal actions from environment
             legal_actions = env.legal_actions
 
@@ -98,30 +96,30 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                     # update the q_table with the penalization
                     agent_white.update(
                         old_play_white['legal_actions'], reward_competior, 
-                        old_play_white['action'], old_play_white['state_flatten'], 
-                        old_play_white['next_state_flatten'], discount_factor, alpha
+                        old_play_white['action'], old_play_white['state'], 
+                        old_play_white['next_state'], discount_factor, alpha,
+                        done
                         )
                 
                 # select an action based on the epsilon greedy policy
-                action = agent_white.get_action(legal_actions, state_flatten, epsilon)
+                action = agent_white.get_epsilon_greedy_action(legal_actions, state, epsilon)
                 # extract the next state, reward and if the game is done
                 next_state, reward, done, _ = env.step(action)
-                # flatten the next state - taking 12 first dimensions
-                next_state_flatten = flatten_state(next_state)
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward_white = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
                 agent_white.update(
                     legal_actions, custom_reward_white, action, 
-                    state_flatten, next_state_flatten, discount_factor, alpha
+                    state, next_state, discount_factor, alpha,
+                    done
                     )
 
                 # save the last play
                 old_play_white = {
                     'legal_actions': legal_actions,
-                    'state_flatten': state_flatten,
+                    'state': state,
                     'action': action,
-                    'next_state_flatten': next_state_flatten
+                    'next_state': next_state
                 }
                 # calculate the cummulated reward
                 cummulated_reward_white += custom_reward_white + reward_competior
@@ -135,30 +133,30 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
                     # update the q_table with the penalization
                      agent_black.update(
                         old_play_black['legal_actions'], reward_competior, 
-                        old_play_black['action'], old_play_black['state_flatten'], 
-                        old_play_black['next_state_flatten'], discount_factor, alpha
+                        old_play_black['action'], old_play_black['state'], 
+                        old_play_black['next_state'], discount_factor, alpha,
+                        done
                         )
                      
                 # select an action based on the epsilon greedy policy
-                action = agent_black.get_action(legal_actions, state_flatten, epsilon)
+                action = agent_black.get_epsilon_greedy_action(legal_actions, state, epsilon)
                 # extract the next state, reward and if the game is done
                 next_state, reward, done, _ = env.step(action)
-                # flatten the next state - taking 12 first dimensions
-                next_state_flatten = flatten_state(next_state)
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward_black = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
                 agent_black.update(
                     legal_actions, custom_reward_black, action, 
-                    state_flatten, next_state_flatten, discount_factor, alpha
+                    state, next_state, discount_factor, alpha,
+                    done
                     )
 
                 # save the last play
                 old_play_black = {
                     'legal_actions': legal_actions,
-                    'state_flatten': state_flatten,
+                    'state': state,
                     'action': action,
-                    'next_state_flatten': next_state_flatten
+                    'next_state': next_state
                 }
                 # calculate the cummulated reward
                 cummulated_reward_black += custom_reward_black + reward_competior
@@ -173,8 +171,9 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
             reward_black = -1
             agent_black.update(
                         old_play_black['legal_actions'], reward_black, 
-                        old_play_black['action'], old_play_black['state_flatten'], 
-                        old_play_black['next_state_flatten'], discount_factor, alpha
+                        old_play_black['action'], old_play_black['state'], 
+                        old_play_black['next_state'], discount_factor, alpha,
+                        done
                         )
             cummulated_reward_black += reward_black
         # if the black player won, penalize the white player
@@ -182,19 +181,20 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
             reward_white = -1
             agent_white.update(
                         old_play_white['legal_actions'], reward_white, 
-                        old_play_white['action'], old_play_white['state_flatten'], 
-                        old_play_white['next_state_flatten'], discount_factor, alpha
+                        old_play_white['action'], old_play_white['state'], 
+                        old_play_white['next_state'], discount_factor, alpha,
+                        done
                         )
             cummulated_reward_white += reward_white
         else:
             reward_white = 0
             reward_black = 0
         
-        print("--- game: ", game, "count: ", count, "reward white: ", reward_white, 
-              "reward black: ", reward_black, "cummulated_reward_white: ", round(cummulated_reward_white,2),
-              "cummulated_reward_black: ", round(cummulated_reward_black,2),
-              'sum q table', round(sum(agent_white.q_table.values()), 2),
-              'sum q table', round(sum(agent_black.q_table.values()),2))
+        # print("--- game: ", game, "count: ", count, "reward white: ", reward_white, 
+        #       "reward black: ", reward_black, "cummulated_reward_white: ", round(cummulated_reward_white,2),
+        #       "cummulated_reward_black: ", round(cummulated_reward_black,2),
+        #       'sum q table', round(sum(agent_white.q_table.values()), 2),
+        #       'sum q table', round(sum(agent_black.q_table.values()),2))
         
         finish_time = time.time()
         
@@ -258,7 +258,7 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
 
     done = False
 
-    agent = agent_class()
+    agent = agent_class(env)
     stockfish = Stockfish()
     stockfish.set_elo_rating(1)
 
@@ -295,8 +295,6 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
 
         # initialize a game
         while not done:
-            # flatten the state - taking 12 first dimensions
-            state_flatten = flatten_state(state)
             # Selecting legal actions from environment
             legal_actions = env.legal_actions
             if count % 2 == player: # White scenario
@@ -308,35 +306,33 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
                     # update the q_table with the penalization
                     agent.update(
                         old_play['legal_actions'], reward_competior, 
-                        old_play['action'], old_play['state_flatten'], 
-                        old_play['next_state_flatten'], discount_factor, alpha
+                        old_play['action'], old_play['state'], 
+                        old_play['next_state'], discount_factor, alpha,
+                        done
                         )
                 
                 # select an action based on the epsilon greedy policy
-                action = agent.get_action(legal_actions, state_flatten, epsilon)
+                action = agent.get_epsilon_greedy_action(legal_actions, state, epsilon)
                 # decode the action to update the stockfish
                 decoded_action = str(env.decode(action))
                 stockfish.make_moves_from_current_position([decoded_action])
                 # extract the next state, reward and if the game is done
                 next_state, reward, done, _ = env.step(action)
-                # print(sum([next_state[:,:,i]*((i%6)+1)  for i in range(12)]))
-                # print('reward agent: ', reward, 'action: ', action)
-                # flatten the next state - taking 12 first dimensions
-                next_state_flatten = flatten_state(next_state)
                 # evaluate the reward based on the next state (custom reward)
                 custom_reward = get_custom_reward(next_state, reward, type='new_state')
                 # update the q_table with the custom reward
                 agent.update(
                     legal_actions, custom_reward, action, 
-                    state_flatten, next_state_flatten, discount_factor, alpha
+                    state, next_state, discount_factor, alpha,
+                    done
                     )
 
                 # save the last play
                 old_play = {
                     'legal_actions': legal_actions,
-                    'state_flatten': state_flatten,
+                    'state': state,
                     'action': action,
-                    'next_state_flatten': next_state_flatten
+                    'next_state': next_state
                 }
                 # calculate the cummulated reward
                 cummulated_reward += custom_reward + reward_competior
@@ -348,7 +344,6 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
                 next_state, reward, done, info = env.step(action)
                 # print(sum([next_state[:,:,i]*((i%6)+1)  for i in range(12)]))
                 
-
             # update the state
             state = next_state
             # update the count
@@ -361,14 +356,15 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
 
         agent.update(
             old_play['legal_actions'], reward, 
-            old_play['action'], old_play['state_flatten'], 
-            old_play['next_state_flatten'], discount_factor, alpha
+            old_play['action'], old_play['state'], 
+            old_play['next_state'], discount_factor, alpha,
+            done
         )
         cummulated_reward += reward
         
-        print("--- game: ", game, "count: ", count, "reward: ", reward, 
-              "cummulated_reward: ", round(cummulated_reward,2),
-              'sum q table', sum(agent.q_table.values()))
+        # print("--- game: ", game, "count: ", count, "reward: ", reward, 
+        #       "cummulated_reward: ", round(cummulated_reward,2),
+        #       'sum q table', sum(agent.q_table.values()))
         
         finish_time = time.time()
         
@@ -402,6 +398,7 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
 if __name__ == "__main__":
     print('start self learning')
     if CONFIGURATION['TYPE'] =='stockfish':
-        learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+        print('STARTING TRAINING WITH STOCKFISH')
+        learn(CONFIGURATION, DQNAgent, checkpoint=None)
     elif CONFIGURATION['TYPE'] =='self_learning':
-        self_learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+        self_learn(CONFIGURATION, DQNAgent, checkpoint=None)

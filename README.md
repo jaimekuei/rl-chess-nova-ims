@@ -45,15 +45,20 @@ q_learning_white_stockfish:
 
 To inicialize the learning process using Q-Learning for an agent that plays white pieces:
 ```
-python learn.py -f rl_agent_config.yaml --config-strategy q_learning_white_stockfish --version v1
+python learn.py -f rl_agent_config.yaml --config-strategy q_learning_white_stockfish --version v2
+```
+
+To inicialize the learning process using DQN for an agent that plays white pieces:
+```
+python learn.py -f rl_agent_config.yaml --config-strategy dqn_white_stockfish --version v2
 ```
 
 To inicialize the learning process using Q-Learning for an agent that plays black pieces:
 ```
-python learn.py -f rl_agent_config.yaml --config-strategy q_learning_black_stockfish --version v1
+python learn.py -f rl_agent_config.yaml --config-strategy q_learning_black_stockfish --version v2
 ```
 
 To inicialize the learning process for self learning using Q-Learning:
 ```
-python learn.py -f rl_agent_config.yaml --config-strategy q_learning --version v1
+python learn.py -f rl_agent_config.yaml --config-strategy q_learning --version v2
 ```
