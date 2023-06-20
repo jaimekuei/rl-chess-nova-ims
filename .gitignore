@@ -131,3 +131,6 @@ dmypy.json
 #removing env
 .reinforcement-learning-env/
 checkpoint_agent.pkl
+
+checkpoint/
+stockfish_15.1_linux_x64_avx2/

@@ -5,7 +5,7 @@ import gym_chess
 from tqdm import tqdm
 
 from utils import save_checkpoint, update_game_metrics, get_custom_reward
-from agents import QLearningAgent, DQNAgent
+from agents import QLearningAgent, DQNAgent, MCTSAgent
 
 from stockfish import Stockfish
 import argparse
@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(prog='rl_learn', description='Train an agent to
 parser.add_argument('-f', '--file', type=str, required=True)
 parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
+parser.add_argument('-so', '--so-type', type=str, required=True, choices=['ubuntu', 'macos'])
 args = parser.parse_args()
 
 # loading the configuration file
@@ -259,7 +260,10 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
     done = False
 
     agent = agent_class(env)
-    stockfish = Stockfish()
+    if args.so_type == 'ubuntu':
+        stockfish = Stockfish("./stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2")
+    else:
+        stockfish = Stockfish()
     stockfish.set_elo_rating(1)
 
     # verification if it's to start in a q_table already trained
@@ -289,7 +293,10 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
         start_time = time.time()
         state = env.reset()
         #reseting stockfish
-        stockfish = Stockfish()
+        if args.so_type == 'ubuntu':
+            stockfish = Stockfish("./stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2")
+        else:
+            stockfish = Stockfish()
         stockfish.set_elo_rating(1)
         count = 0
 
@@ -399,6 +406,16 @@ if __name__ == "__main__":
     print('start self learning')
     if CONFIGURATION['TYPE'] =='stockfish':
         print('STARTING TRAINING WITH STOCKFISH')
-        learn(CONFIGURATION, DQNAgent, checkpoint=None)
+        if 'q_learning' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+        elif 'dqn' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, DQNAgent, checkpoint=None)
+        elif 'mcts' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, MCTSAgent, checkpoint=None)
     elif CONFIGURATION['TYPE'] =='self_learning':
-        self_learn(CONFIGURATION, DQNAgent, checkpoint=None)
+        if 'q_learning' in CONFIGURATION['STRATEGY']:
+            self_learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+        elif 'dqn' in CONFIGURATION['STRATEGY']:
+            self_learn(CONFIGURATION, DQNAgent, checkpoint=None)
+        elif 'mcts' in CONFIGURATION['STRATEGY']:
+            self_learn(CONFIGURATION, MCTSAgent, checkpoint=None)

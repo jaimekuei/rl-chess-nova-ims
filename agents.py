@@ -13,8 +13,7 @@ class QLearningAgent:
         self.q_table = collections.defaultdict(float,{((),0) : 0})
         self.epsilon_greedy_action = None
 
-    def _get_max_expected_reward(self, next_state, legal_actions):
-        next_state_flatten = self._flatten_state(next_state)
+    def _get_max_expected_reward(self, next_state_flatten, legal_actions):
         filtered_dict = {
             (state, action): reward for (state, action), reward in self.q_table.items() 
             if state == next_state_flatten and action in legal_actions
@@ -22,12 +21,13 @@ class QLearningAgent:
         return max(filtered_dict.values()) if filtered_dict else 0
 
     def get_epsilon_greedy_action(self, legal_actions, state, epsilon=0.1, method="zeros"):
-        if state not in list(self.q_table.keys())[0]:
-            self._initialize_q_value(legal_actions, state, method)
+        state_flatten = self._flatten_state(state)
+        if state_flatten not in list(self.q_table.keys())[0]:
+            self._initialize_q_value(legal_actions, state_flatten, method)
         if np.random.uniform(0,1) < epsilon:
             return np.random.choice(legal_actions)
         else:
-            Q_values = np.array([self.q_table[(state,action)] for action in legal_actions])
+            Q_values = np.array([self.q_table[(state_flatten,action)] for action in legal_actions])
             return legal_actions[np.argmax(Q_values)]
 
     def _initialize_q_value(self, legal_actions, state, method):
@@ -162,3 +162,33 @@ class DQNAgent:
     #update the target network weights by copying from the main network
     def update_target_network(self):
         self.target_network.set_weights(self.main_network.get_weights())
+
+class MCTSAgent:
+    def __init__(self, move=None, parent=None, state=None):
+        self.move = move # The move that leads to this node
+        self.parent = parent # Parent node
+        self.children = [] # Child nodes
+        self.wins = 0 # Number of wins after simulations
+        self.visits = 0 # Number of times the node has been visited
+        self.untried_moves = list(state.legal_moves) if state else []  # Untried moves from this state
+
+    def select_child(self):
+        # Use UCB1 formula () to select the child with the highest UCB value (https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwjr29GthK__AhXqR6QEHbWKAwgQFnoECBoQAQ&url=https%3A%2F%2Fieor8100.github.io%2Fmab%2FLecture%25203.pdf&usg=AOvVaw0RZpgEMI5JpoHfKc43vycx)
+        return max(self.children, key=lambda c: c.wins / c.visits + math.sqrt(2 * math.log(self.visits) / c.visits))
+
+    def expand(self, state):
+        # Take an untried move, create a new state, and add a child node
+        move = self.untried_moves.pop()
+        new_state = state.copy()
+        new_state.push(move)
+        child_node = MCTSAgent(move=move, parent=self, state=new_state)
+        self.children.append(child_node)
+        return child_node
+
+    def update(self, result):
+        # Update the wins and visits count of the node
+        self.visits += 1
+        self.wins += result
+
+
+
