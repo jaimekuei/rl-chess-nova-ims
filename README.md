@@ -7,7 +7,7 @@ Welcome! This is a repository for Reinforcement Learning project !
 | 20220593 | Joice Preuss | 
 | 20220594 | Jaime Kuei | 
 | 20220595 | Maxwell Marcos | 
-|  | Miguel Ramos |
+| 20210581 | Miguel Ramos |
 
 ## Contents
 This repository is organanized as follows:
