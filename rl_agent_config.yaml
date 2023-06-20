@@ -32,3 +32,15 @@ q_learning_black_stockfish:
   CHECKPOINT_ARTEFACTS: 50
   COLOR_PLAYER: 'black'
   TYPE: 'stockfish'
+
+dqn_white_stockfish:
+  ENV_NAME: "ChessAlphaZero-v0"
+  NUM_EPISODES: 100000
+  DISCOUNT_FACTOR: 1
+  ALPHA: 0.6
+  EPSILON: 0.1
+  STRATEGY: 'dqn_white_stockfish'
+  CHECKPOINT_METRICS: 10
+  CHECKPOINT_ARTEFACTS: 50
+  COLOR_PLAYER: 'white'
+  TYPE: 'stockfish'

@@ -114,6 +114,3 @@ def get_custom_reward(state, reward, type='new_state'):
         reward -= 0.1 * (last_queens - current_queens)
 
     return reward
-
-def flatten_state(state):
-    return tuple(state[:,:,:12].flatten())
