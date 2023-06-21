@@ -64,7 +64,7 @@ class DQNAgent:
         #define the replay buffer
         self.replay_buffer = deque(maxlen=1000)
         #define counter for update the target model
-        self.counter_target = 0
+        self.counter_target = 1
         #define counter for update the main model
         self.counter_main_model = 0
         #define the discount factor
@@ -81,16 +81,18 @@ class DQNAgent:
         self.target_network.set_weights(self.main_network.get_weights())
         #learning rate
         self.learning_rate = .0001
+        #batch size
+        self.batch_size = 5#64
         
     #Let's define a function called build_network which is essentially our DQN. 
 
     #NAO TA FUNCIONANDO AINDA
     def build_network(self):
         model = Sequential()
-        model.add(Conv2D(filters=32, kernel_size=8, strides=4, activation='relu', input_shape=self.state_size))
+        model.add(Conv2D(filters=12, kernel_size=(2,2), strides=1,padding='same', activation='relu', input_shape=self.state_size))
         model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Conv2D(filters=12, kernel_size=(4, 4), activation='relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Conv2D(filters=12, kernel_size=(2, 2), activation='relu'))
+        # model.add(MaxPooling2D(pool_size=(2, 2)))
         model.add(Flatten())
         model.add(Dense(216, activation='relu'))
         model.add(Dense(self.action_size, activation='softmax'))
@@ -102,9 +104,11 @@ class DQNAgent:
         self.replay_buffer.append((state, action, reward, next_state, done))
     
     def get_state_dimensions(self, state):
-        return state[:,:,:12]
+        # return state[:,:,:12]
+        return np.expand_dims(state[:,:,:12],axis=0)
 
     def get_epsilon_greedy_action(self, legal_actions, state, epsilon=0.1, method="zeros"):
+        ## ADAPT TO DECRESCENT EPSILON
         state = self.get_state_dimensions(state)
         if np.random.uniform(0,1) < epsilon:
             return np.random.choice(legal_actions)
@@ -116,6 +120,8 @@ class DQNAgent:
             next_state, discount_factor, alpha, done):
         
         state = self.get_state_dimensions(state)
+        next_state = self.get_state_dimensions(next_state)
+
         if done:
             # reset the counter to update the main model for each episode
             self.counter_main_model = 0
@@ -123,8 +129,7 @@ class DQNAgent:
             self.counter_target += 1
         # count the iteration inside an episode
         self.counter_main_model += 1
-
-        if self.counter_target % self.update_rate == 0:
+        if ((self.counter_target % self.update_rate) == 0) and done:
             print('=== Update the target network ===')
             self.update_target_network()
         
@@ -132,19 +137,33 @@ class DQNAgent:
 
         if (len(self.replay_buffer) > self.batch_size) & (self.counter_main_model % 10 == 0):
             print('--- Training the main network ---')
+            print('-'*15, f'step n:{self.counter_main_model}', '-'*15)
             self.train(self.batch_size)
+    
+    def _process_batch(self, batch):
+        reshaped_array = np.expand_dims(batch, axis=(1, 2, 3))
+        # Repeat the array along the new dimensions to get shape (5, 8, 8, 12)
+        final_array = np.repeat(reshaped_array, repeats=8, axis=1)
+        final_array = np.repeat(final_array, repeats=8, axis=2)
+        final_array = np.repeat(final_array, repeats=12, axis=3)
+        return final_array
 
     def train(self, batch_size):
         minibatch = np.array(random.sample(self.replay_buffer, batch_size), dtype=object)
-
         state_list = np.array(minibatch[:,0], dtype=object)
         state_list = np.hstack(state_list).reshape(batch_size, 8, 8, 12)
+        # state_list = self._process_batch(state_list)
 
-        next_state_list = np.array(minibatch[:,3])
+        # Check the shape and data type of the new array
+        print("Batch shape:", state_list.shape)
+        print("Batch type:", state_list.dtype)    
+        
+        next_state_list = np.array(minibatch[:,3],dtype=object)
         next_state_list = np.hstack(next_state_list).reshape(batch_size, 8, 8, 12)
+        # next_state_list_processed = self._process_batch(next_state_list)
 
-        current_Q_values_list = self.main_network.predict(state_list, verbose=0)
-        max_q = np.amax(self.target_network.predict(next_state_list, verbose=0), axis=1)
+        current_Q_values_list = self.main_network.predict(tf.convert_to_tensor(state_list, dtype=tf.float32), verbose=0)
+        max_q = np.amax(self.target_network.predict(tf.convert_to_tensor(next_state_list), verbose=0), axis=1)
 
         for i, zip_ in enumerate(minibatch):
             state, action, reward, next_state, done = zip_
