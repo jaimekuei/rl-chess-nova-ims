@@ -19,7 +19,7 @@ q_learning_white_stockfish:
   CHECKPOINT_METRICS: 10
   CHECKPOINT_ARTEFACTS: 50
   COLOR_PLAYER: 'white'
-  TYPE: 'stockfish'
+  TYPE: 'stockfish_v2'
 
 q_learning_black_stockfish:
   ENV_NAME: "ChessAlphaZero-v0"
@@ -31,7 +31,7 @@ q_learning_black_stockfish:
   CHECKPOINT_METRICS: 10
   CHECKPOINT_ARTEFACTS: 50
   COLOR_PLAYER: 'black'
-  TYPE: 'stockfish'
+  TYPE: 'stockfish_v2'
 
 dqn_white_stockfish:
   ENV_NAME: "ChessAlphaZero-v0"
@@ -43,4 +43,4 @@ dqn_white_stockfish:
   CHECKPOINT_METRICS: 10
   CHECKPOINT_ARTEFACTS: 50
   COLOR_PLAYER: 'white'
-  TYPE: 'stockfish'
+  TYPE: 'stockfish_v2'

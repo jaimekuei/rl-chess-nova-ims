@@ -542,7 +542,7 @@ def learn_v2(CONFIGURATION, agent_class, checkpoint=None):
 
 if __name__ == "__main__":
     print('start self learning')
-    if CONFIGURATION['TYPE'] =='stockfish':
+    if CONFIGURATION['TYPE'] =='stockfish_v2':
         print('STARTING TRAINING WITH STOCKFISH')
         if 'q_learning' in CONFIGURATION['STRATEGY']:
             learn_v2(CONFIGURATION, QLearningAgent, checkpoint=None)
@@ -550,6 +550,14 @@ if __name__ == "__main__":
             learn_v2(CONFIGURATION, DQNAgent, checkpoint=None)
         elif 'mcts' in CONFIGURATION['STRATEGY']:
             learn_v2(CONFIGURATION, MCTSAgent, checkpoint=None)
+    elif CONFIGURATION['TYPE'] =='stockfish':
+        print('STARTING TRAINING WITH STOCKFISH')
+        if 'q_learning' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+        elif 'dqn' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, DQNAgent, checkpoint=None)
+        elif 'mcts' in CONFIGURATION['STRATEGY']:
+            learn(CONFIGURATION, MCTSAgent, checkpoint=None)
     elif CONFIGURATION['TYPE'] =='self_learning':
         if 'q_learning' in CONFIGURATION['STRATEGY']:
             self_learn(CONFIGURATION, QLearningAgent, checkpoint=None)
