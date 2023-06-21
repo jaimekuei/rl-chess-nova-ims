@@ -82,7 +82,7 @@ class DQNAgent:
         #learning rate
         self.learning_rate = .0001
         #batch size
-        self.batch_size = 5#64
+        self.batch_size = 64 #64
         
     #Let's define a function called build_network which is essentially our DQN. 
 
