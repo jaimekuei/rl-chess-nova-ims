@@ -137,6 +137,8 @@ class DQNAgent:
         self.initial_epsilon = 1
         #define the epsilon exponential decay
         self.epsilon_decay = 0.01 # bigger : decays faster
+        #define the number of steps to reach a stable epsilon in a linear decay
+        self.linear_steps_to_decay = 10000
         #define the epsilon
         self.epsilon = 1
         #define the update rate at which we want to update the target network
@@ -244,6 +246,28 @@ class DQNAgent:
             new_epsilon: the new epsilon value
         """
         new_epsilon = self.initial_epsilon * math.exp(-self.epsilon_decay * step)
+        
+        if new_epsilon < min_epsilon:
+            return min_epsilon
+        elif new_epsilon > self.initial_epsilon:
+            return self.initial_epsilon
+        else:
+            return new_epsilon
+        
+    def _linear_decay(self, step, min_epsilon):
+        """
+        This function returns the epsilon value based on the linear decay
+
+        Parameters
+        ----------
+            step: the current step
+            min_epsilon: the minimum epsilon value
+            
+        Returns
+        ----------
+            new_epsilon: the new epsilon value
+        """
+        new_epsilon = self.initial_epsilon - (step / self.linear_steps_to_decay) * (self.initial_epsilon - min_epsilon)
         
         if new_epsilon < min_epsilon:
             return min_epsilon
