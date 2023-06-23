@@ -230,13 +230,6 @@ class MCTSAgent:
     def get_epsilon_greedy_action(self, legal_actions, state, min_epsilon=0.1, method="zeros"):
         # implement the rational of MCTS
         pass
-        # self.epsilon = self._exponential_decay(self.total_plays, min_epsilon)
-        # state = self.get_state_dimensions(state)
-        # if np.random.uniform(0,1) < self.epsilon:
-        #     return np.random.choice(legal_actions)
-        # else:
-        #     legal_actions_dict = {action: self.main_network.predict(state, verbose=0).flatten()[action] for action in legal_actions}
-        #     return max(legal_actions_dict, key=legal_actions_dict.get)
 
     def update(self, legal_actions, reward, action, state, 
             next_state, discount_factor, alpha, done):
@@ -248,7 +241,5 @@ class MCTSAgent:
             # propagate the reward back to the root node
             pass
         else:
+            pass
             # take action and update the state
-
-
-
