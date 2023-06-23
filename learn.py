@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(prog='rl_learn', description='Train an agent to
 parser.add_argument('-f', '--file', type=str, required=True)
 parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
-parser.add_argument('-so', '--so-type', type=str, required=True, choices=['ubuntu', 'macos'])
+parser.add_argument('-so', '--so-type', type=str, required=True, choices=['ubuntu', 'macos', 'windows'])
 parser.add_argument('-ch', '--checkpoint', type=bool, required=False, default=False)
 parser.add_argument('-sfp', '--stock-fish-path', type=bool, required=False, default=False)
 args = parser.parse_args()

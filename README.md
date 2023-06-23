@@ -4,14 +4,18 @@ Welcome! This is a repository for Reinforcement Learning project !
 
 | Student Number | Student Names |
 |---|---|
-| 20220595 | Joice Preuss | 
+| 20220595 | Joice Cardoso | 
 | 20220593 | Jaime Kuei | 
 | 20220594 | Maxwell Marcos | 
 | 20210581 | Miguel Ramos |
 
 ## Contents
 This repository is organanized as follows:
-
+```
+learn.py - this file is responsible for run the learning process
+agents.py - this file is responsible for creating the agent classes  
+utils.py - this file is responsible for creating helper functions for the project
+```
 ## How to configure the local environment for the project?
 
  ```
@@ -45,6 +49,15 @@ For `macos` only need to pass `macos` when run the learning process
 For `ubuntu` and `windows` users you need to past the stockfish path in the root folder of the 
 project and pass the `--stock-fish-path` or `-sfpath` when run. 
 Ex.: `--stock-fish-path 'stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2'`
+
+## What are the possible arguments?
+
+`--file or -f`: configuration file name.
+`--config-strategy or -c`: used to choose the configured strategy within the configuration file.
+`--version or -v`: used to select the learn version.
+`--so-type or -so`: used to choose the user's operating system between 'ubuntu', 'macos' and 'windows'.
+`--checkpoint or -ch`: when set to true, retrieves the last checkpoint made for a specific configuration.
+`--stock-fish-path or -sfp`: used when the OS is Windows or Ubuntu, specifies the path to the Stockfish folder.
 
 ## How to run locally the learning process for the agents?
 
