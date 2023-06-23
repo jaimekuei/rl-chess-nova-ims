@@ -1,12 +1,14 @@
 import numpy as np
 import collections
+import math
+import random
+from collections import deque
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Activation, Flatten, Conv2D, MaxPooling2D
+from tensorflow.keras.layers import Dense, Activation, Flatten, Conv2D, MaxPooling2D, Dropout
 from tensorflow.keras.optimizers import Adam
-import random
-from collections import deque
+from tensorflow.keras import initializers
 
 class QLearningAgent:
     def __init__(self, env):
@@ -62,43 +64,80 @@ class DQNAgent:
         #define the action size
         self.action_size = env.action_space.n
         #define the replay buffer
-        self.replay_buffer = deque(maxlen=1000)
+        self.replay_buffer = deque(maxlen=5000)
+        #define the total plays
+        self.total_plays = 0
         #define counter for update the target model
         self.counter_target = 1
         #define counter for update the main model
         self.counter_main_model = 0
         #define the discount factor
         self.gamma = 0.9
-        #define the epsilon value
-        self.epsilon = 0.99
+        #define the initial epsilon value
+        self.initial_epsilon = 1
+        #define the epsilon exponential decay
+        self.epsilon_decay = 0.01 # bigger : decays faster
+        #define the number of steps to reach a stable epsilon in a linear decay
+        self.linear_steps_to_decay = 10000
+        #define the epsilon
+        self.epsilon = 1
         #define the update rate at which we want to update the target network
         self.update_rate = 5
+        #learning rate
+        self.learning_rate = 0.0001
+        #batch size
+        self.batch_size = 128
         #define the main network
         self.main_network = self.build_network()
         #define the target network
         self.target_network = self.build_network()
         #copy the weights of the main network to the target network
         self.target_network.set_weights(self.main_network.get_weights())
-        #learning rate
-        self.learning_rate = .0001
-        #batch size
-        self.batch_size = 64 #64
         
     #Let's define a function called build_network which is essentially our DQN. 
 
     #NAO TA FUNCIONANDO AINDA
     def build_network(self):
         model = Sequential()
-        model.add(Conv2D(filters=12, kernel_size=(2,2), strides=1,padding='same', activation='relu', input_shape=self.state_size))
+        # Block 1
+        model.add(Conv2D(filters=64, kernel_size=(2,2), strides=1,padding='same', activation='relu', input_shape=self.state_size))
+        model.add(Conv2D(filters=64, kernel_size=(2,2), strides=1,padding='same', activation='relu'))
         model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Conv2D(filters=12, kernel_size=(2, 2), activation='relu'))
-        # model.add(MaxPooling2D(pool_size=(2, 2)))
+        # Block 2
+        model.add(Conv2D(filters=128, kernel_size=(2,2), strides=1,padding='same', activation='relu'))
+        model.add(Conv2D(filters=128, kernel_size=(2,2), strides=1,padding='same',activation='relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        # Block 3
+        model.add(Conv2D(filters=256, kernel_size=(2,2), strides=1,padding='same', activation='relu'))
+        model.add(Conv2D(filters=256, kernel_size=(2,2), strides=1,padding='same',activation='relu'))
+        # FC layers
         model.add(Flatten())
-        model.add(Dense(216, activation='relu'))
-        model.add(Dense(self.action_size, activation='softmax'))
+        model.add(Dropout(0.5))
+        # model.add(Dense(216, activation='relu'),kernel_initializer=initializers.GlorotNormal(seed=42))
+        model.add(Dense(self.action_size, activation='linear',kernel_initializer=initializers.GlorotNormal(seed=42)))
         
-        model.compile(loss='mse', optimizer=Adam(learning_rate=.0001, epsilon=1e-7))
+        model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate, epsilon=1e-7))
         return model
+
+    def _exponential_decay(self, step, min_epsilon):
+        new_epsilon = self.initial_epsilon * math.exp(-self.epsilon_decay * step)
+        
+        if new_epsilon < min_epsilon:
+            return min_epsilon
+        elif new_epsilon > self.initial_epsilon:
+            return self.initial_epsilon
+        else:
+            return new_epsilon
+        
+    def _linear_decay(self, step, min_epsilon):
+        new_epsilon = self.initial_epsilon - (step / self.linear_steps_to_decay) * (self.initial_epsilon - min_epsilon)
+        
+        if new_epsilon < min_epsilon:
+            return min_epsilon
+        elif new_epsilon > self.initial_epsilon:
+            return self.initial_epsilon
+        else:
+            return new_epsilon
 
     def store_transistion(self, state, action, reward, next_state, done):
         self.replay_buffer.append((state, action, reward, next_state, done))
@@ -107,10 +146,11 @@ class DQNAgent:
         # return state[:,:,:12]
         return np.expand_dims(state[:,:,:12],axis=0)
 
-    def get_epsilon_greedy_action(self, legal_actions, state, epsilon=0.1, method="zeros"):
-        ## ADAPT TO DECRESCENT EPSILON
+    def get_epsilon_greedy_action(self, legal_actions, state, min_epsilon=0.1, method="zeros"):
+        # self.epsilon = self._exponential_decay(self.total_plays, min_epsilon)
+        self.epsilon = self._linear_decay(self.total_plays, min_epsilon)
         state = self.get_state_dimensions(state)
-        if np.random.uniform(0,1) < epsilon:
+        if np.random.uniform(0,1) < self.epsilon:
             return np.random.choice(legal_actions)
         else:
             legal_actions_dict = {action: self.main_network.predict(state, verbose=0).flatten()[action] for action in legal_actions}
@@ -124,20 +164,25 @@ class DQNAgent:
 
         if done:
             # reset the counter to update the main model for each episode
-            self.counter_main_model = 0
+            # self.counter_main_model = 0
             # count the episode
             self.counter_target += 1
         # count the iteration inside an episode
         self.counter_main_model += 1
+        # count the total plays in simulation
+        self.total_plays += 1
         if ((self.counter_target % self.update_rate) == 0) and done:
             print('=== Update the target network ===')
             self.update_target_network()
         
         self.store_transistion(state, action, reward, next_state, done)
 
-        if (len(self.replay_buffer) > self.batch_size) & (self.counter_main_model % 10 == 0):
+        if (len(self.replay_buffer) > self.batch_size) & (self.counter_main_model % 64 == 0):
             print('--- Training the main network ---')
-            print('-'*15, f'step n:{self.counter_main_model}', '-'*15)
+            print(' ','-'*2, f'step n:{self.counter_main_model}')
+            print(' ','-'*2, f'epsilon: {self.epsilon}')
+            # reset the counter to update the main model after training
+            self.counter_main_model = 0
             self.train(self.batch_size)
     
     def _process_batch(self, batch):
@@ -154,9 +199,9 @@ class DQNAgent:
         state_list = np.hstack(state_list).reshape(batch_size, 8, 8, 12)
         # state_list = self._process_batch(state_list)
 
-        # Check the shape and data type of the new array
-        print("Batch shape:", state_list.shape)
-        print("Batch type:", state_list.dtype)    
+        # # Check the shape and data type of the new array
+        # print("Batch shape:", state_list.shape)
+        # print("Batch type:", state_list.dtype)    
         
         next_state_list = np.array(minibatch[:,3],dtype=object)
         next_state_list = np.hstack(next_state_list).reshape(batch_size, 8, 8, 12)
@@ -176,7 +221,7 @@ class DQNAgent:
             current_Q_values_list[i][action] = updated_Q_value
         
         #train the main network
-        self.main_network.fit(state_list, current_Q_values_list, epochs=1, verbose=0)
+        self.main_network.fit(state_list, current_Q_values_list, epochs=20, verbose=2)
             
     #update the target network weights by copying from the main network
     def update_target_network(self):
