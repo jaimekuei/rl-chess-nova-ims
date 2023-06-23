@@ -5,7 +5,7 @@ import gym_chess
 from tqdm import tqdm
 
 from utils import save_checkpoint, update_game_metrics, get_custom_reward, load_checkpoint
-from agents import QLearningAgent, DQNAgent, MCTSAgent
+from agents import QLearningAgent, DQNAgent
 
 from stockfish import Stockfish
 import argparse
@@ -19,6 +19,7 @@ parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
 parser.add_argument('-so', '--so-type', type=str, required=True, choices=['ubuntu', 'macos'])
 parser.add_argument('-ch', '--checkpoint', type=bool, required=False, default=False)
+parser.add_argument('-sfp', '--stock-fish-path', type=bool, required=False, default=False)
 args = parser.parse_args()
 
 # loading the configuration file
@@ -34,6 +35,23 @@ print(json.dumps(CONFIGURATION, indent=4))
 print('---------------------------------------------')
 
 def self_learn(CONFIGURATION, agent_class, checkpoint=None):
+    """
+    Self learn process
+
+    Parameters
+    ----------
+    CONFIGURATION : dict
+        The configuration of the learning process
+    agent_class : class
+        The class of the agent
+    checkpoint : dict
+        The checkpoint to load
+
+    Returns
+    -------
+    game_metrics : dict
+        The game metrics
+    """
     # Set all the variables
     env = gym.make(CONFIGURATION['ENV_NAME'])
     num_episodes = CONFIGURATION['NUM_EPISODES']
@@ -239,6 +257,26 @@ def self_learn(CONFIGURATION, agent_class, checkpoint=None):
     return agent_white, agent_black, game_metrics
 
 def learn(CONFIGURATION, agent_class, checkpoint=None):
+    """
+    This function is responsible for the learning process of the agent versus the stockfish.
+
+    Parameters
+    ----------
+    CONFIGURATION : dict
+        The configuration of the learning process.
+    agent_class : class
+        The class of the agent.
+    checkpoint : dict
+        The checkpoint of the learning process.
+
+    Returns
+    -------
+    agent : class
+        The agent trained.
+    game_metrics : dict
+        The metrics of the learning process.
+    """
+
     # Set all the variables
     env = gym.make(CONFIGURATION['ENV_NAME'])
     num_episodes = CONFIGURATION['NUM_EPISODES']
@@ -261,8 +299,8 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
     done = False
 
     agent = agent_class(env)
-    if args.so_type == 'ubuntu':
-        stockfish = Stockfish("./stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2")
+    if args.so_type in ['ubuntu','windows']:
+        stockfish = Stockfish(args.stockfish_path)
     else:
         stockfish = Stockfish()
     stockfish.set_elo_rating(1)
@@ -404,6 +442,26 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
     return agent, game_metrics
 
 def learn_v2(CONFIGURATION, agent_class, checkpoint=False):
+    """
+    This function is responsible for the learning process of the agent vs stockfish.
+    It's a new version of the learn function, we started to consider stockfish moves.
+
+    Parameters
+    ----------
+    CONFIGURATION : dict
+        Dictionary with all the configuration parameters
+    agent_class : class
+        Class of the agent to be used
+    checkpoint : bool, optional
+        If we want to load a checkpoint, by default False
+
+    Returns
+    -------
+    agent : class
+        Class of the agent
+    game_metrics : dict
+        Dictionary with the metrics of the game
+    """
     # Set all the variables
     env = gym.make(CONFIGURATION['ENV_NAME'])
     num_episodes = CONFIGURATION['NUM_EPISODES']
@@ -545,6 +603,27 @@ def learn_v2(CONFIGURATION, agent_class, checkpoint=False):
     return agent, game_metrics
 
 def learn_v3(CONFIGURATION, agent_class, checkpoint=False):
+    """
+    This function is responsible for the learning process of the agent. After the game loop is 
+    finished, there is an additional update of the agent's Q-table based on the final reward and 
+    the stored previous state information.
+
+    Parameters
+    ----------
+    CONFIGURATION : dict
+        Dictionary with the configuration of the learning process.
+    agent_class : class
+        Class of the agent to be used in the learning process.
+    checkpoint : bool, optional
+        If it's to start the learning process from a checkpoint. The default is False.
+
+    Returns
+    -------
+    agent : class
+        Class of the agent after the learning process.
+    game_metrics : dict
+        Dictionary with the metrics of the learning process.
+    """
     # Set all the variables
     env = gym.make(CONFIGURATION['ENV_NAME'])
     num_episodes = CONFIGURATION['NUM_EPISODES']
@@ -722,6 +801,7 @@ def learn_v3(CONFIGURATION, agent_class, checkpoint=False):
             save_checkpoint(strategy, version, game, agent, game_metrics, save_type='full')
 
     return agent, game_metrics
+
 if __name__ == "__main__":
     if CONFIGURATION['TYPE'] =='stockfish_v3':
         print('STARTING TRAINING WITH STOCKFISH')
@@ -729,8 +809,6 @@ if __name__ == "__main__":
             learn_v3(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
             learn_v3(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
-        elif 'mcts' in CONFIGURATION['STRATEGY']:
-            learn_v3(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
     if CONFIGURATION['TYPE'] == 'stockfish_v2':
         print('STARTING TRAINING WITH STOCKFISH')
         if 'q_learning' in CONFIGURATION['STRATEGY']:
@@ -738,20 +816,14 @@ if __name__ == "__main__":
         elif 'dqn' in CONFIGURATION['STRATEGY']:
             print('start dqn learn_v2')
             learn_v2(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
-        elif 'mcts' in CONFIGURATION['STRATEGY']:
-            learn_v2(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
     elif CONFIGURATION['TYPE'] =='stockfish':
         print('STARTING TRAINING WITH STOCKFISH')
         if 'q_learning' in CONFIGURATION['STRATEGY']:
             learn(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
             learn(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
-        elif 'mcts' in CONFIGURATION['STRATEGY']:
-            learn(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
     elif CONFIGURATION['TYPE'] =='self_learning':
         if 'q_learning' in CONFIGURATION['STRATEGY']:
             self_learn(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
             self_learn(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
-        elif 'mcts' in CONFIGURATION['STRATEGY']:
-            self_learn(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)

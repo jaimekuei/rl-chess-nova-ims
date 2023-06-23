@@ -4,9 +4,9 @@ Welcome! This is a repository for Reinforcement Learning project !
 
 | Student Number | Student Names |
 |---|---|
-| 20220593 | Joice Preuss | 
-| 20220594 | Jaime Kuei | 
-| 20220595 | Maxwell Marcos | 
+| 20220595 | Joice Preuss | 
+| 20220593 | Jaime Kuei | 
+| 20220594 | Maxwell Marcos | 
 | 20210581 | Miguel Ramos |
 
 ## Contents
@@ -40,6 +40,11 @@ q_learning_white_stockfish:
   COLOR_PLAYER: 'white'
   TYPE: 'stockfish'
 ```
+## How to set with stockfish?
+For `macos` only need to pass `macos` when run the learning process
+For `ubuntu` and `windows` users you need to past the stockfish path in the root folder of the 
+project and pass the `--stock-fish-path` or `-sfpath` when run. 
+Ex.: `--stock-fish-path 'stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2'`
 
 ## How to run locally the learning process for the agents?
 

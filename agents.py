@@ -93,6 +93,12 @@ class DQNAgent:
         self.target_network.set_weights(self.main_network.get_weights())
 
     def build_network(self):
+        """
+        This function builds the neural network
+
+        Returns:
+            model: the neural network model
+        """
         model = Sequential()
         # Block 1
         model.add(Conv2D(filters=128, kernel_size=(2,2), strides=1,padding='same', activation='relu', input_shape=self.state_size))
@@ -112,13 +118,50 @@ class DQNAgent:
         return model
 
     def store_transistion(self, state, action, reward, next_state, done):
+        """
+        This function stores the transition in the replay buffer
+
+        Parameters
+        ----------
+            state: the current state
+            action: the action taken
+            reward: the reward received
+            next_state: the next state
+            done: whether the episode is done or not
+        """
         self.replay_buffer.append((state, action, reward, next_state, done))
     
     def get_state_dimensions(self, state):
+        """
+        This function returns the state dimensions
+
+        Parameters
+        ----------
+            state: the current state
+
+        Returns
+        ----------
+            state: the state dimensions
+        """
         # return state[:,:,:12]
+
         return np.expand_dims(state[:,:,:12],axis=0)
 
     def get_epsilon_greedy_action(self, legal_actions, state, min_epsilon=0.1, method="zeros"):
+        """
+        This function returns the epsilon greedy action
+
+        Parameters
+        ----------
+            legal_actions: the legal actions
+            state: the current state
+            min_epsilon: the minimum epsilon value
+            method: the method to initialize the Q values
+
+        Returns
+        ----------
+            action: the epsilon greedy action
+        """
         self.epsilon = self._exponential_decay(self.total_plays, min_epsilon)
         state = self.get_state_dimensions(state)
         if np.random.uniform(0,1) < self.epsilon:
@@ -128,6 +171,18 @@ class DQNAgent:
             return max(legal_actions_dict, key=legal_actions_dict.get)
 
     def _exponential_decay(self, step, min_epsilon):
+        """
+        This function returns the epsilon value based on the exponential decay
+
+        Parameters
+        ----------
+            step: the current step
+            min_epsilon: the minimum epsilon value
+            
+        Returns
+        ----------
+            new_epsilon: the new epsilon value
+        """
         new_epsilon = self.initial_epsilon * math.exp(-self.epsilon_decay * step)
         
         if new_epsilon < min_epsilon:
@@ -139,6 +194,20 @@ class DQNAgent:
         
     def update(self, legal_actions, reward, action, state, 
             next_state, discount_factor, alpha, done):
+        """
+        This function updates the Q values
+
+        Parameters
+        ----------
+            legal_actions: the legal actions
+            reward: the reward received
+            action: the action taken
+            state: the current state
+            next_state: the next state
+            discount_factor: the discount factor
+            alpha: the learning rate
+            done: whether the episode is done or not
+        """
         
         state = self.get_state_dimensions(state)
         next_state = self.get_state_dimensions(next_state)
@@ -164,6 +233,17 @@ class DQNAgent:
             self.train(self.batch_size)
     
     def _process_batch(self, batch):
+        """
+        This function reshapes the batch
+
+        Parameters
+        ----------
+            batch: the batch to be reshaped
+
+        Returns
+        ----------
+            final_array: the reshaped batch
+        """
         reshaped_array = np.expand_dims(batch, axis=(1, 2, 3))
         # Repeat the array along the new dimensions to get shape (5, 8, 8, 12)
         final_array = np.repeat(reshaped_array, repeats=8, axis=1)
@@ -172,6 +252,13 @@ class DQNAgent:
         return final_array
 
     def train(self, batch_size):
+        """
+        This function trains the main network
+
+        Parameters
+        ----------
+            batch_size: the batch size
+        """
         minibatch = np.array(random.sample(self.replay_buffer, batch_size), dtype=object)
         state_list = np.array(minibatch[:,0], dtype=object)
         state_list = np.hstack(state_list).reshape(batch_size, 8, 8, 12)
@@ -203,43 +290,7 @@ class DQNAgent:
             
     #update the target network weights by copying from the main network
     def update_target_network(self):
+        """
+        This function updates the target network
+        """
         self.target_network.set_weights(self.main_network.get_weights())
-
-class MCTSAgent:
-    def __init__(self, move=None, parent=None, state=None):
-        self.move = move # The move that leads to this node
-        self.parent = parent # Parent node
-        self.children = [] # Child nodes
-        self.wins = 0 # Number of wins after simulations
-        self.visits = 0 # Number of times the node has been visited
-        self.untried_moves = list(state.legal_moves) if state else []  # Untried moves from this state
-
-    def select_child(self):
-        # Use UCB1 formula () to select the child with the highest UCB value (https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwjr29GthK__AhXqR6QEHbWKAwgQFnoECBoQAQ&url=https%3A%2F%2Fieor8100.github.io%2Fmab%2FLecture%25203.pdf&usg=AOvVaw0RZpgEMI5JpoHfKc43vycx)
-        return max(self.children, key=lambda c: c.wins / c.visits + math.sqrt(2 * math.log(self.visits) / c.visits))
-
-    def expand(self, state):
-        # Take an untried move, create a new state, and add a child node
-        move = self.untried_moves.pop()
-        new_state = state.copy()
-        new_state.push(move)
-        child_node = MCTSAgent(move=move, parent=self, state=new_state)
-        self.children.append(child_node)
-        return child_node
-    
-    def get_epsilon_greedy_action(self, legal_actions, state, min_epsilon=0.1, method="zeros"):
-        # implement the rational of MCTS
-        pass
-
-    def update(self, legal_actions, reward, action, state, 
-            next_state, discount_factor, alpha, done):
-        # Update the wins and visits count of the node
-        self.visits += 1
-        self.wins += result
-
-        if done:
-            # propagate the reward back to the root node
-            pass
-        else:
-            pass
-            # take action and update the state

@@ -4,6 +4,21 @@ import re
 import pickle
 
 def get_last_checkpoint_path(strategy, version):
+    """
+    Get the path of the last checkpoint
+
+    Parameters
+    ----------
+    strategy : str
+        The strategy used to train the agent
+    version : str
+        The version of the strategy
+
+    Returns
+    -------
+    path : str
+        The path of the last checkpoint
+    """
     path = os.path.join(os.getcwd(), 'checkpoint', strategy, version)
     # select only folders with iteration
     folders = [folder for folder in os.listdir(path) if 'iteration' in folder]
@@ -11,6 +26,21 @@ def get_last_checkpoint_path(strategy, version):
     return os.path.join(path, folders[iterations_index]), folders[iterations_index]
 
 def load_checkpoint(strategy, version, iteration='latest'):
+    """
+    Load a checkpoint
+
+    Parameters
+    ----------
+    strategy : str
+        The strategy used to train the agent
+    version : str
+        The version of the strategy
+
+    Returns
+    -------
+    checkpoint : dict
+        A dictionary with the agent, the Q_dict and the game_metrics
+    """
     if iteration == 'latest':
         checkpoint_info = get_last_checkpoint_path(strategy, version)
         path = checkpoint_info[0]
@@ -49,6 +79,24 @@ def load_checkpoint(strategy, version, iteration='latest'):
     return checkpoint
 
 def save_checkpoint(strategy, version, iteration, agent, game_metrics, save_type='full'):
+    """
+    Save a checkpoint
+
+    Parameters
+    ----------
+    strategy : str
+        The strategy used to train the agent
+    version : str
+        The version of the strategy
+    iteration : int
+        The iteration number
+    agent : Agent
+        The agent to save
+    game_metrics : dict
+        The game metrics to save
+    save_type : str
+        The type of checkpoint to save
+    """
     checkpoint_folder = os.path.join(os.getcwd(), 'checkpoint')
 
     if save_type == 'full':
@@ -75,11 +123,37 @@ def save_checkpoint(strategy, version, iteration, agent, game_metrics, save_type
     print(f'Iteration {iteration} - Checkpoint saved !')
 
 def update_game_metrics(game_metrics, game_metrics_values):
+    """
+    Update the game metrics
+
+    Parameters
+    ----------
+    game_metrics : dict
+        The game metrics
+    game_metrics_values : dict
+        The new game metrics values
+    """
     for key, value in game_metrics_values.items():
         game_metrics[key].append(value)
 
 def get_custom_reward(state, reward, type='new_state'):
+    """
+    Get the custom reward
 
+    Parameters
+    ----------
+    state : np.array
+        The state of the game
+    reward : float
+        The reward
+    type : str
+        The type of reward to get
+
+    Returns
+    -------
+    reward : float
+        The custom reward
+    """
     index = 0
         
     current_pawns = sum(state[:,:,index].flatten())
