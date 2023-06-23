@@ -16,31 +16,33 @@ def load_checkpoint(strategy, version, iteration='latest'):
         path = checkpoint_info[0]
         iteration_name = checkpoint_info[1]
 
-        path_white = os.path.join(path, 'checkpoint_q_dict_white.pkl')
-        path_black = os.path.join(path, 'checkpoint_q_dict_black.pkl')
+        path_agent = os.path.join(path, 'checkpoint_agent.pkl')
+        # path_black = os.path.join(path, 'checkpoint_q_dict_black.pkl')
         path_metrics = os.path.join(path, 'checkpoint_game_metrics.pkl')
     else:
+        print('AQUI')
         if re.match(r'iteration_\d+', iteration) is not None:
-            path_white = os.path.join(os.getcwd(), 'checkpoint', strategy, version, iteration, 'checkpoint_q_dict_white.pkl')
-            path_black = os.path.join(os.getcwd(), 'checkpoint', strategy, version, iteration, 'checkpoint_q_dict_black.pkl')
+            path_agent = os.path.join(os.getcwd(), 'checkpoint', strategy, version, iteration, 'checkpoint_agent.pkl')
+            # path_black = os.path.join(os.getcwd(), 'checkpoint', strategy, version, iteration, 'checkpoint_q_dict_black.pkl')
             path_metrics =os.path.join(os.getcwd(), 'checkpoint', strategy, version, iteration, 'checkpoint_game_metrics.pkl')
         else:
             raise ValueError('Iteration not found')
     
+    print(path_agent)
+
     print('Loading checkpoint from: ', iteration_name)
-    with open(path_white, 'rb') as f:
-        Q_dict_white = pickle.load(f)
-    print('----> Loaded Q_dict_white')
-    with open(path_black, 'rb') as f:
-        Q_dict_black = pickle.load(f)
-    print('----> Loaded Q_dict_black')
+    with open(path_agent, 'rb') as f:
+        agent = pickle.load(f)
+    print('----> Loaded agent')
+    # with open(path_black, 'rb') as f:
+    #     Q_dict_black = pickle.load(f)
+    # print('----> Loaded Q_dict_black')
     with open(path_metrics, 'rb') as f:
         results = pickle.load(f)
     print('----> Loaded game_metrics')
     
     checkpoint = {
-        'Q_dict_white': Q_dict_white,
-        'Q_dict_black': Q_dict_black,
+        'agent': agent,
         'game_metrics': results
     }
 
