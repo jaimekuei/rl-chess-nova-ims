@@ -57,3 +57,10 @@ To inicialize the learning process using Q-Learning for an agent that plays blac
 ```
 python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy q_learning_black_stockfish --version v3
 ```
+
+python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish_v3 --version v1
+
+
+python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish --version v2
+
+python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish_v2 --version v1

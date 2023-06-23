@@ -4,7 +4,7 @@ import gym
 import gym_chess
 from tqdm import tqdm
 
-from utils import save_checkpoint, update_game_metrics, get_custom_reward
+from utils import save_checkpoint, update_game_metrics, get_custom_reward, load_checkpoint
 from agents import QLearningAgent, DQNAgent, MCTSAgent
 
 from stockfish import Stockfish
@@ -18,6 +18,7 @@ parser.add_argument('-f', '--file', type=str, required=True)
 parser.add_argument('-c', '--config-strategy', type=str, required=True)
 parser.add_argument('-v', '--version', type=str, required=True)
 parser.add_argument('-so', '--so-type', type=str, required=True, choices=['ubuntu', 'macos'])
+parser.add_argument('-ch', '--checkpoint', type=bool, required=False, default=False)
 args = parser.parse_args()
 
 # loading the configuration file
@@ -402,7 +403,7 @@ def learn(CONFIGURATION, agent_class, checkpoint=None):
 
     return agent, game_metrics
 
-def learn_v2(CONFIGURATION, agent_class, checkpoint=None):
+def learn_v2(CONFIGURATION, agent_class, checkpoint=False):
     # Set all the variables
     env = gym.make(CONFIGURATION['ENV_NAME'])
     num_episodes = CONFIGURATION['NUM_EPISODES']
@@ -444,7 +445,9 @@ def learn_v2(CONFIGURATION, agent_class, checkpoint=None):
         cummulated_reward = 0
         game_index = 0
     else:
-        agent = checkpoint['q_table']
+        checkpoint = load_checkpoint(strategy, version, iteration='latest')
+
+        agent = checkpoint['agent']
         game_metrics = checkpoint['game_metrics']
         cummulated_reward = game_metrics['cummulated_reward'][-1]
         game_index = game_metrics['game'][-1]
@@ -523,6 +526,7 @@ def learn_v2(CONFIGURATION, agent_class, checkpoint=None):
 
         # update the game metrics
         update_game_metrics(game_metrics, game_metrics_values)
+        print(json.dumps(game_metrics_values, indent=4))
         
         # cummulated reward for each player
         cummulated_reward = 0
@@ -540,28 +544,214 @@ def learn_v2(CONFIGURATION, agent_class, checkpoint=None):
 
     return agent, game_metrics
 
+def learn_v3(CONFIGURATION, agent_class, checkpoint=False):
+    # Set all the variables
+    env = gym.make(CONFIGURATION['ENV_NAME'])
+    num_episodes = CONFIGURATION['NUM_EPISODES']
+    discount_factor = CONFIGURATION['DISCOUNT_FACTOR']
+    alpha = CONFIGURATION['ALPHA']
+    epsilon = CONFIGURATION['EPSILON']
+    strategy = CONFIGURATION['STRATEGY']
+    version = CONFIGURATION['VERSION']
+    color_player = CONFIGURATION['COLOR_PLAYER']
+    checkpoint_metrics = CONFIGURATION['CHECKPOINT_METRICS']
+    checkpoint_artefacts = CONFIGURATION['CHECKPOINT_ARTEFACTS']
+
+    if color_player == 'white':
+        player = 0
+    elif color_player == 'black':
+        player = 1
+    else:
+        raise ValueError('Color player must be white or black')
+
+    done = False
+
+    agent = agent_class(env)
+    if args.so_type == 'ubuntu':
+        stockfish = Stockfish("./stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2")
+    else:
+        stockfish = Stockfish()
+    stockfish.set_elo_rating(1)
+
+    # verification if it's to start in a q_table already trained
+    if not checkpoint:
+        game_metrics = {
+            'game': [],
+            'avg_plays': [],
+            'last_reward': [],
+            'cummulated_reward': [],
+            'process_time': []
+        }
+
+        cummulated_reward = 0
+        game_index = 0
+    else:
+        checkpoint = load_checkpoint(strategy, version, iteration='latest')
+
+        agent = checkpoint['agent']
+        game_metrics = checkpoint['game_metrics']
+        cummulated_reward = game_metrics['cummulated_reward'][-1]
+        game_index = game_metrics['game'][-1]
+
+    old_state_player = {}
+    old_state_stockfish = {}
+
+    print('Start learning process from game: ', game_index+1, ' to game: ', game_index+num_episodes)
+    for game in range(game_index+1, game_index+num_episodes+1):
+        print('--- Simulation Game: ', game)
+        start_time = time.time()
+        state = env.reset()
+        #reseting stockfish
+        if args.so_type == 'ubuntu':
+            stockfish = Stockfish("./stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x86-64-avx2")
+        else:
+            stockfish = Stockfish()
+        stockfish.set_elo_rating(1)
+        count = 0
+
+        # initialize a game
+        while not done:
+            # Selecting legal actions from environment
+            legal_actions = env.legal_actions
+            if count % 2 == player: # White scenario
+                # select an action based on the epsilon greedy policy
+                action = agent.get_epsilon_greedy_action(legal_actions, state, epsilon)
+                # decode the action to update the stockfish
+                decoded_action = str(env.decode(action))
+                stockfish.make_moves_from_current_position([decoded_action])
+                # extract the next state, reward and if the game is done
+                next_state, reward, done, _ = env.step(action)
+                # evaluate the reward based on the next state (custom reward)
+                custom_reward = get_custom_reward(next_state, reward, type='new_state')
+                # update the q_table with the custom reward
+                agent.update(
+                    legal_actions, custom_reward, action, 
+                    state, next_state, discount_factor, alpha,
+                    done
+                    )
+                
+                old_state_player = {
+                    'legal_actions': legal_actions,
+                    'custom_reward': custom_reward,
+                    'action': action,
+                    'state': state,
+                    'next_state': next_state,
+                    'discount_factor': discount_factor,
+                    'alpha': alpha,
+                    'done': done
+                }
+                # calculate the cummulated reward
+                cummulated_reward += custom_reward
+
+            else: # Stockfish scenario
+                decoded_action = stockfish.get_best_move()
+                action = env.encode(chess.Move.from_uci(decoded_action))
+                stockfish.make_moves_from_current_position([decoded_action])
+                next_state, reward, done, info = env.step(action)
+                # evaluate the reward based on the next state from the competitor (custom reward)
+                custom_reward = get_custom_reward(next_state, -reward, type='new_state')
+                # update the q_table with the custom reward
+                agent.update(
+                    legal_actions, custom_reward, action, 
+                    state, next_state, discount_factor, alpha,
+                    done
+                    )
+                
+                old_state_stockfish = {
+                    'legal_actions': legal_actions,
+                    'custom_reward': custom_reward,
+                    'action': action,
+                    'state': state,
+                    'next_state': next_state,
+                    'discount_factor': discount_factor,
+                    'alpha': alpha,
+                    'done': done,
+                }
+                
+            # update the state
+            state = next_state
+            # update the count
+            count += 1
+
+        if color_player == 'white':
+            reward = reward
+        else:
+            reward = -reward
+
+        cummulated_reward += reward
+        
+        if count % 2 != player:
+            agent.update(
+                    old_state_player['legal_actions'], reward, old_state_player['action'], 
+                    old_state_player['state'], old_state_player['next_state'], old_state_player['discount_factor'], 
+                    old_state_player['alpha'], done
+                    )
+        else:
+            agent.update(
+                    old_state_stockfish['legal_actions'], -reward, old_state_stockfish['action'], 
+                    old_state_stockfish['state'], old_state_stockfish['next_state'], old_state_stockfish['discount_factor'], 
+                    old_state_stockfish['alpha'], done
+                    )
+
+        finish_time = time.time()
+        
+        game_metrics_values = {
+            'game': game,
+            'avg_plays': count,
+            'last_reward': reward,
+            'cummulated_reward': cummulated_reward,
+            'process_time': round((finish_time-start_time), 2)
+        }
+
+        # update the game metrics
+        update_game_metrics(game_metrics, game_metrics_values)
+        print(json.dumps(game_metrics_values, indent=4))
+        
+        # cummulated reward for each player
+        cummulated_reward = 0
+        # reset the game
+        done = False
+        
+        # save the metrics for each 50 games played
+        if game % checkpoint_metrics == 0:
+            print("Simulation Games: ", game, 'Saving intermediate metrics...')
+            save_checkpoint(strategy, version, game, None, game_metrics, save_type='metrics')
+        # save the full artefacts for each 250 games played
+        if game % checkpoint_artefacts == 0:
+            print("---> Simulation Games: ", game, 'Saving full artefacts and metrics...')
+            save_checkpoint(strategy, version, game, agent, game_metrics, save_type='full')
+
+    return agent, game_metrics
 if __name__ == "__main__":
-    print('start self learning')
-    if CONFIGURATION['TYPE'] =='stockfish_v2':
+    if CONFIGURATION['TYPE'] =='stockfish_v3':
         print('STARTING TRAINING WITH STOCKFISH')
         if 'q_learning' in CONFIGURATION['STRATEGY']:
-            learn_v2(CONFIGURATION, QLearningAgent, checkpoint=None)
+            learn_v3(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
-            learn_v2(CONFIGURATION, DQNAgent, checkpoint=None)
+            learn_v3(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
         elif 'mcts' in CONFIGURATION['STRATEGY']:
-            learn_v2(CONFIGURATION, MCTSAgent, checkpoint=None)
+            learn_v3(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
+    if CONFIGURATION['TYPE'] == 'stockfish_v2':
+        print('STARTING TRAINING WITH STOCKFISH')
+        if 'q_learning' in CONFIGURATION['STRATEGY']:
+            learn_v2(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
+        elif 'dqn' in CONFIGURATION['STRATEGY']:
+            print('start dqn learn_v2')
+            learn_v2(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
+        elif 'mcts' in CONFIGURATION['STRATEGY']:
+            learn_v2(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
     elif CONFIGURATION['TYPE'] =='stockfish':
         print('STARTING TRAINING WITH STOCKFISH')
         if 'q_learning' in CONFIGURATION['STRATEGY']:
-            learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+            learn(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
-            learn(CONFIGURATION, DQNAgent, checkpoint=None)
+            learn(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
         elif 'mcts' in CONFIGURATION['STRATEGY']:
-            learn(CONFIGURATION, MCTSAgent, checkpoint=None)
+            learn(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
     elif CONFIGURATION['TYPE'] =='self_learning':
         if 'q_learning' in CONFIGURATION['STRATEGY']:
-            self_learn(CONFIGURATION, QLearningAgent, checkpoint=None)
+            self_learn(CONFIGURATION, QLearningAgent, checkpoint=args.checkpoint)
         elif 'dqn' in CONFIGURATION['STRATEGY']:
-            self_learn(CONFIGURATION, DQNAgent, checkpoint=None)
+            self_learn(CONFIGURATION, DQNAgent, checkpoint=args.checkpoint)
         elif 'mcts' in CONFIGURATION['STRATEGY']:
-            self_learn(CONFIGURATION, MCTSAgent, checkpoint=None)
+            self_learn(CONFIGURATION, MCTSAgent, checkpoint=args.checkpoint)
