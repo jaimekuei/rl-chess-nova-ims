@@ -12,10 +12,29 @@ from collections import deque
 
 class QLearningAgent:
     def __init__(self, env):
+        """
+        This function initializes the QLearningAgent
+
+        Parameters
+        ----------
+            env: the environment
+        """
         self.q_table = collections.defaultdict(float,{((),0) : 0})
         self.epsilon_greedy_action = None
 
     def _get_max_expected_reward(self, next_state_flatten, legal_actions):
+        """
+        This function returns the maximum expected reward for the next state
+
+        Parameters
+        ----------
+            next_state_flatten: the next state
+            legal_actions: the legal actions
+
+        Returns
+        -------
+            max(filtered_dict.values()): the maximum expected reward for the next state
+        """
         filtered_dict = {
             (state, action): reward for (state, action), reward in self.q_table.items() 
             if state == next_state_flatten and action in legal_actions
@@ -33,6 +52,15 @@ class QLearningAgent:
             return legal_actions[np.argmax(Q_values)]
 
     def _initialize_q_value(self, legal_actions, state, method):
+        """
+        This function initializes the Q value
+
+        Parameters
+        ----------
+            legal_actions: the legal actions
+            state: the state
+            method: the method to initialize the Q value
+        """
         if method == "zeros":
             for action in legal_actions:
                 self.q_table[((state),action)] = 0
@@ -42,6 +70,20 @@ class QLearningAgent:
 
     def update(self, legal_actions, reward, action, state, 
             next_state, discount_factor, alpha, done):
+        """
+        This function updates the Q value
+
+        Parameters
+        ----------
+            legal_actions: the legal actions
+            reward: the reward
+            action: the action
+            state: the state
+            next_state: the next state
+            discount_factor: the discount factor
+            alpha: the learning rate
+            done: the done flag
+        """
         
         state_flatten = self._flatten_state(state)
         next_state_flatten = self._flatten_state(next_state)
@@ -55,10 +97,28 @@ class QLearningAgent:
         self.q_table[(state_flatten, action)] += alpha * td_delta
     
     def _flatten_state(self, state):
+        """
+        This function flattens the state
+
+        Parameters
+        ----------
+            state: the state
+
+        Returns
+        -------
+            tuple(state[:,:,:12].flatten()): the flattened state
+        """
         return tuple(state[:,:,:12].flatten())
 
 class DQNAgent:
     def __init__(self, env):
+        """
+        This function initializes the DQNAgent
+
+        Parameters
+        ----------
+            env: the environment
+        """
         #define the state size
         self.state_size = (8, 8, 12)
         #define the action size
