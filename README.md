@@ -52,33 +52,23 @@ Ex.: `--stock-fish-path 'stockfish_15.1_linux_x64_avx2/stockfish-ubuntu-20.04-x8
 
 ## What are the possible arguments?
 
+```
 `--file or -f`: configuration file name.
 `--config-strategy or -c`: used to choose the configured strategy within the configuration file.
 `--version or -v`: used to select the learn version.
 `--so-type or -so`: used to choose the user's operating system between 'ubuntu', 'macos' and 'windows'.
 `--checkpoint or -ch`: when set to true, retrieves the last checkpoint made for a specific configuration.
 `--stock-fish-path or -sfp`: used when the OS is Windows or Ubuntu, specifies the path to the Stockfish folder.
+```
 
 ## How to run locally the learning process for the agents?
 
-To inicialize the learning process using Q-Learning for an agent that plays white pieces:
-```
-python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy q_learning_white_stockfish --version v3
-```
-
 To inicialize the learning process using DQN for an agent that plays white pieces:
 ```
-python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish --version v3
-```
-
-To inicialize the learning process using Q-Learning for an agent that plays black pieces:
-```
-python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy q_learning_black_stockfish --version v3
-```
-
-python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish_v3 --version v1
-
-
-python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish --version v2
-
 python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy dqn_white_stockfish_v2 --version v1
+```
+
+To inicialize the learning process using Q-learning for an agent that plays white pieces:
+```
+python learn.py -f rl_agent_config.yaml --so-type macos --config-strategy q_learning_white_stockfish --version v1
+```
